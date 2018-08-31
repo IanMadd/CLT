@@ -47,7 +47,7 @@ ui <- fluidPage(
                         max = 300)
             
             ),
-        # Created Tabbed Panel ---------------------------------------------------------
+# Create Tabbed Panel ---------------------------------------------------------
         mainPanel(
             
             tabsetPanel(type = "tabs",
@@ -79,73 +79,73 @@ seed = as.numeric(Sys.time())
 
 server <- function(input, output) {
   
-  output$mu = renderUI(
-    {
-      req(input$dist)
-      if (input$dist == "rnorm")
-      {
-        numericInput("mu",
-                    "Mean",
-                    value = 0)
-      }
+    output$mu = renderUI(
+        {
+        req(input$dist)
+        if (input$dist == "rnorm")
+        {
+            numericInput("mu",
+                        "Mean",
+                        value = 0)
+        }
     })
   
-  output$sd = renderUI(
-    {
-      req(input$dist)
-      if (input$dist == "rnorm")
-      {
-        numericInput("sd",
-                    "Standard deviation",
-                    value = 1,
-                    min = .01)
-      }
+    output$sd = renderUI(
+        {
+        req(input$dist)
+        if (input$dist == "rnorm")
+        {
+            numericInput("sd",
+                        "Standard deviation",
+                        value = 1,
+                        min = .01)
+        }
     })
   
-  output$min = renderUI(
-    {
-      req(input$dist)
-      #print("min")
-      if (input$dist == "runif")
-      {
-        sliderInput("min",
-                    "Lower Bound",
-                    value = 0,
-                    min = 0,
-                    max = 20)
-      }
+    output$min = renderUI(
+        {
+        req(input$dist)
+        #print("min")
+        if (input$dist == "runif")
+        {
+            sliderInput("min",
+                        "Lower Bound",
+                        value = 0,
+                        min = 0,
+                        max = 20)
+        }
     })
   
-  output$max = renderUI(
-    {
-      req(input$dist)
-      #print("max")
-      if (input$dist == "runif")
-      {
-        sliderInput("max",
-                    "Upper Bound",
-                    value = 1,
-                    min = 1,
-                    max = 20)
-      }
+    output$max = renderUI(
+        {
+        req(input$dist)
+        #print("max")
+        if (input$dist == "runif")
+        {
+            sliderInput("max",
+                        "Upper Bound",
+                        value = 1,
+                        min = 1,
+                        max = 20)
+        }
+        })
+  
+    output$skew = renderUI(
+        {
+        req(input$dist)
+        #print("skew options")
+        if (input$dist == "rlnorm" | input$dist == "rbeta"){
+            selectInput(inputId = "skew",
+                        label = "Skew",
+                        choices = c("Low skew" = "low",
+                                    "Medium skew" = "med",
+                                    "High skew" = "high"),
+                        selected = "low")
+        }
     })
   
-  output$skew = renderUI(
-    {
-      req(input$dist)
-      #print("skew options")
-      if (input$dist == "rlnorm" | input$dist == "rbeta"){
-        selectInput(inputId = "skew",
-                    label = "Skew",
-                    choices = c("Low skew" = "low",
-                                "Medium skew" = "med",
-                                "High skew" = "high"),
-                    selected = "low")
-      }
-    })
-  
-  output$size = renderUI(
-      {
+    output$size = renderUI(
+        {
           req(input$dist)
           if (input$dist == "rbinom")
           {
@@ -153,10 +153,10 @@ server <- function(input, output) {
                            "Size",
                            value = 10)
           }
-      })
+        })
   
-  output$probability = renderUI(
-      {
+    output$probability = renderUI(
+        {
           req(input$dist)
           if (input$dist == "rbinom")
           {
@@ -169,7 +169,7 @@ server <- function(input, output) {
       })
   
     output$lambda = renderUI(
-      {
+        {
           req(input$dist)
           if (input$dist == "rpois")
           {
@@ -242,7 +242,7 @@ server <- function(input, output) {
     return(vals)
   }
 
-# Create population data -------------------------------------------------------    
+# Create population and sample data ------------------------------------------   
     
   # the repeatable function always uses the same seed when called
   rep_rand_draw = repeatable(rand_draw)  
@@ -262,12 +262,120 @@ server <- function(input, output) {
     pop = parent()
     n = input$n
     k = 10000
-    # k = input$k
+
     return(replicate(k, sample(pop, n, replace=TRUE)))
   })
+# Plot: Distribution of Sample Means -------------------------------------------------
   
-  # creates 
-  populationDataTable = data.table(population = parent)
+    output$sampling.dist = renderPlot({
+      
+        L = NULL ; U = NULL ; error = FALSE
+      
+        if (input$dist == "runif"){
+            L = input$min ; U = input$max
+            if (L > U){
+                error = TRUE
+            }
+        }
+      
+        if (error)
+            return
+          
+        else{
+              
+            distname = switch(input$dist,
+                                rnorm = "normal population",
+                                rlnorm  = "right skewed population",
+                                rbeta = "left skewed population",
+                                runif = "uniform population",
+                                rexp = "exponential population")   
+              
+              
+            n = input$n
+            k = 10000
+            
+            pop = parent()
+              
+            m_pop =  round(mean(pop),2)
+            sd_pop = round(sd(pop),2)
+              
+            ndist = colMeans(samples())
+            ndistDataTable = data.table(sampleMeans = colMeans(samples()))
+              
+            m_samp =  round(mean(ndist),2)
+            sd_samp = round(sd(ndist),2)
+              
+            ndens=density(ndist)
+            nhist=hist(ndist, plot=FALSE)
+              
+              # if (input$dist == "rnorm"){
+              #   hist(ndist, main = paste("Sampling distribution:\nDistribution of means of ", k, 
+              #                            " random samples, each\nconsisting of ", n, 
+              #                            " observations from a ", distname, sep=""),              
+              #        xlab="Sample means", freq=FALSE,
+              #        xlim=c(min(-100,pop),max(100,pop)),
+              #        ylim=c(0, max(ndens$y, nhist$density)),
+              #        col=COL[2,2], border = "white", 
+              #        cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
+              #   legend_pos = ifelse(m_samp > 40, "topleft", "topright")
+              #   legend(legend_pos, inset = 0.025, 
+              #          legend=bquote(atop("mean of " ~ bar(x)==.(m_samp),"sd of " ~ bar(x) ~ "(SE)" ==.(sd_samp))), 
+              #          bty = "n", cex = 1.5, text.col = COL[2,2], text.font = 2)
+              # }
+              
+              
+              if (input$dist == "rnorm"){
+                  ggplot(ndistDataTable, aes(sampleMeans, stat(density))) + geom_histogram()
+              }
+              else{
+                  hist(ndist, main=paste("Distribution of means of ", k, 
+                                         " random samples, each\nconsisting of ", n, 
+                                         " observations from a ", distname, sep=""), 
+                       xlab="Sample means", freq=FALSE, ylim=c(0, max(ndens$y, nhist$density)),
+                       col=COL[2,3], border = "white", 
+                       cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
+                  legend_pos = ifelse(m_samp > 40, "topleft", "topright")
+                  legend(legend_pos, inset = 0.025, 
+                         legend=bquote(atop("mean of " ~ bar(x)==.(m_samp),"sd of " ~ bar(x) ~ "(SE)" ==.(sd_samp))), 
+                         bty = "n", cex = 1.5, text.col = COL[2], text.font = 2)
+              }
+              #lines(ndens, col=COL[2], lwd=3)
+              #box()
+          }
+      })
+  
+  # Sampling Distribution Text 
+  
+  output$sampling.descr = renderText({
+      
+      distname = switch(input$dist,
+                        rnorm = "normal population.",
+                        rlnorm  = "right skewed population.",
+                        rbeta = "left skewed population.",
+                        runif = "uniform population.",
+                        rexp = "exponential population.")  
+      
+      L = NULL ; U = NULL ; error = FALSE
+      
+      if (input$dist == "runif"){
+          L = input$min ; U = input$max
+          if (L > U){
+              error = TRUE
+          }
+      }
+      
+      if (error)
+          paste0()
+      
+      else{
+          
+          k = 10000
+          n = input$n
+          paste("Distribution of ", k, "meaned samples,\n
+                each meaned sample consists of", n, " observations
+                from a", distname)
+      }
+      })  
   
 # Plot: Population Distribution ------------------------------------------------
   
@@ -284,6 +392,7 @@ server <- function(input, output) {
     m_pop =  round(mean(pop),2)
     sd_pop = round(sd(pop),2)
     mu = input$mu
+    populationDataTable = data.table(population = pop)
     
     L = NULL
     U = NULL
@@ -307,30 +416,41 @@ server <- function(input, output) {
       
         pdens=density(pop)
         phist=hist(pop, plot=FALSE)
-#        if (input$dist == "rnorm"){
-#            hist(pop, main=distname, xlab="", freq=FALSE, xlim = c(min(-100,pop),max(100,pop)),
-#                ylim=c(0, max(pdens$y, phist$density)), col=COL[1,2], border = "white",
-#                cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
-#            legend_pos = ifelse(mu > 0, "topleft", "topright")
-#            legend(legend_pos, inset = 0.025,
-#                   legend=bquote(atop(mu==.(round(m_pop)),sigma==.(round(sd_pop)))),
-#                   bty = "n", cex = 1.5, text.col = COL[1], text.font = 2)
-#       }
-        
         if (input$dist == "rnorm"){
+            hist(pop, main=distname, xlab="", freq=FALSE, xlim = c(min(pop),max(pop)),
+                ylim=c(0, max(pdens$y, phist$density)), col=COL[1,2], border = "white",
+                cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
+            legend_pos = ifelse(mu > 0, "topleft", "topright")
+            legend(legend_pos, inset = 0.025,
+                   legend=bquote(atop(mu==.(round(m_pop)),sigma==.(round(sd_pop)))),
+                   bty = "n", cex = 1.5, text.col = COL[1], text.font = 2)
+            textOutput("Hello", container = pre)
             
-        p <- ggplot(populationDataTable, aes(population)) + geom_histogram()
-        p
-        }
-      if (input$dist == "runif"){
-        hist(pop, main=distname, xlab="", freq=FALSE,
-             ylim=c(0, max(pdens$y, phist$density)+.5), col=COL[1,2], border = "white",
-             cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
-        legend_pos = ifelse(mu > 0, "topleft", "topright")
-        legend(legend_pos, inset = 0.025,
-               legend=bquote(atop(mu==.(round(m_pop)),sigma==.(round(sd_pop)))),
-               bty = "n", cex = 1.5, text.col = COL[1], text.font = 2)
-      }
+            multiprintFun <- renderText({
+                print("foo");
+                "bar"
+            })
+            vecFun <- renderText({ 1:5 })
+            vecFun()
+       }
+        
+#        if (input$dist == "rnorm"){
+#            
+#            populationDataTable <- data.table(population = pop)
+#           textOutput("Data Table: ")
+#            ggplot(populationDataTable, aes(population, stat(density))) + geom_histogram()
+#            
+#        }
+        
+        if (input$dist == "runif"){
+            hist(pop, main=distname, xlab="", freq=FALSE,
+                ylim=c(0, max(pdens$y, phist$density)+.5), col=COL[1,2], border = "white",
+                cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
+            legend_pos = ifelse(mu > 0, "topleft", "topright")
+            legend(legend_pos, inset = 0.025,
+                legend=bquote(atop(mu==.(round(m_pop)),sigma==.(round(sd_pop)))),
+                bty = "n", cex = 1.5, text.col = COL[1], text.font = 2)
+            }
       if (input$dist == "rlnorm") {
         hist(pop, main=distname,
              xlab="", freq=FALSE, ylim=c(0, max(pdens$y, phist$density)),
@@ -395,7 +515,7 @@ server <- function(input, output) {
     }
   })
   
-# Render Text ------------------------------------------------------------------
+# Render "Distribution of Samples" Text ------------------------------------------------------------------
   
   output$num.samples = renderText({
     L = NULL ; U = NULL ; error = FALSE
@@ -417,120 +537,7 @@ server <- function(input, output) {
     }
   })
   
-# Plot: Sampling Distribution -------------------------------------------------
-  
-  output$sampling.dist = renderPlot({
-    
-    L = NULL ; U = NULL ; error = FALSE
-    
-    if (input$dist == "runif"){
-      L = input$min ; U = input$max
-      if (L > U){
-        error = TRUE
-      }
-    }
-    
-    if (error)
-      return
-    
-    else{
-      
-      distname = switch(input$dist,
-                        rnorm = "normal population",
-                        rlnorm  = "right skewed population",
-                        rbeta = "left skewed population",
-                        runif = "uniform population",
-                        rexp = "exponential population")   
-      
-      
-      n = input$n
-      k = 10000
-      #k = input$k
-      # replacing user input of replications (k) with a standard number of 10,000 replications
-      
-      
-      pop = parent()
-      
-      m_pop =  round(mean(pop),2)
-      sd_pop = round(sd(pop),2)
-      
-      ndist = colMeans(samples())
-      ndistDataTable = data.table(sampleMeans = colMeans(samples()))
-      
-      m_samp =  round(mean(ndist),2)
-      sd_samp = round(sd(ndist),2)
-      
-      ndens=density(ndist)
-      nhist=hist(ndist, plot=FALSE)
-      
-      # if (input$dist == "rnorm"){
-      #   hist(ndist, main = paste("Sampling distribution:\nDistribution of means of ", k, 
-      #                            " random samples, each\nconsisting of ", n, 
-      #                            " observations from a ", distname, sep=""),              
-      #        xlab="Sample means", freq=FALSE,
-      #        xlim=c(min(-100,pop),max(100,pop)),
-      #        ylim=c(0, max(ndens$y, nhist$density)),
-      #        col=COL[2,2], border = "white", 
-      #        cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
-      #   legend_pos = ifelse(m_samp > 40, "topleft", "topright")
-      #   legend(legend_pos, inset = 0.025, 
-      #          legend=bquote(atop("mean of " ~ bar(x)==.(m_samp),"sd of " ~ bar(x) ~ "(SE)" ==.(sd_samp))), 
-      #          bty = "n", cex = 1.5, text.col = COL[2,2], text.font = 2)
-      # }
-      
-      
-      if (input$dist == "rnorm"){
-        ggplot(ndistDataTable, aes(sampleMeans)) + geom_histogram()
-      }
-      else{
-        hist(ndist, main=paste("Distribution of means of ", k, 
-                               " random samples, each\nconsisting of ", n, 
-                               " observations from a ", distname, sep=""), 
-             xlab="Sample means", freq=FALSE, ylim=c(0, max(ndens$y, nhist$density)),
-             col=COL[2,3], border = "white", 
-             cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
-        legend_pos = ifelse(m_samp > 40, "topleft", "topright")
-        legend(legend_pos, inset = 0.025, 
-               legend=bquote(atop("mean of " ~ bar(x)==.(m_samp),"sd of " ~ bar(x) ~ "(SE)" ==.(sd_samp))), 
-               bty = "n", cex = 1.5, text.col = COL[2], text.font = 2)
-      }
-      #lines(ndens, col=COL[2], lwd=3)
-      #box()
-    }
-  })
-  
-  # Sampling Distribution Text 
-  
-  output$sampling.descr = renderText({
-    
-    distname = switch(input$dist,
-                      rnorm = "normal population.",
-                      rlnorm  = "right skewed population.",
-                      rbeta = "left skewed population.",
-                      runif = "uniform population.",
-                      rexp = "exponential population.")  
-    
-    L = NULL ; U = NULL ; error = FALSE
-    
-    if (input$dist == "runif"){
-      L = input$min ; U = input$max
-      if (L > U){
-        error = TRUE
-      }
-    }
-    
-    if (error)
-      paste0()
-    
-    else{
-      
-      k = 10000
-      n = input$n
-      paste("Distribution of ", k, "meaned samples,\n
-            each meaned sample consists of", n, " observations
-            from a", distname)
-    }
-    })
+
   
 # text
   output$CLT.descr = renderText({
