@@ -228,7 +228,13 @@ server <- function(input, output) {
     }
     else if (dist == "runif"){
       vals = do.call(dist, list(n=n, min=min, max=max))
-    }    
+    }
+    else if (dist == "rpois"){
+        vals = do.call(dist, list(n=n, lambda = lambda))    
+    }
+    else if (dist == "rbinom"){
+        vals = do.call(dist, list(n=n, size = size, prob = probability))    
+    }
     return(vals)
   }
 
@@ -317,22 +323,24 @@ server <- function(input, output) {
               #          bty = "n", cex = 1.5, text.col = COL[2,2], text.font = 2)
               # }
               
+            
+            ggplot(ndistDataTable, aes(sampleMeans, stat(density))) + geom_histogram(bins = 100)
               
-              if (input$dist == "rnorm"){
-                  ggplot(ndistDataTable, aes(sampleMeans, stat(density))) + geom_histogram()
-              }
-              else{
-                  hist(ndist, main=paste("Distribution of means of ", k, 
-                                         " random samples, each\nconsisting of ", n, 
-                                         " observations from a ", distname, sep=""), 
-                       xlab="Sample means", freq=FALSE, ylim=c(0, max(ndens$y, nhist$density)),
-                       col=COL[2,3], border = "white", 
-                       cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
-                  legend_pos = ifelse(m_samp > 40, "topleft", "topright")
-                  legend(legend_pos, inset = 0.025, 
-                         legend=bquote(atop("mean of " ~ bar(x)==.(m_samp),"sd of " ~ bar(x) ~ "(SE)" ==.(sd_samp))), 
-                         bty = "n", cex = 1.5, text.col = COL[2], text.font = 2)
-              }
+            # if (input$dist == "rnorm"){
+            #     ggplot(ndistDataTable, aes(sampleMeans, stat(density))) + geom_histogram(bins = 100)
+            # }
+            # else{
+            #     hist(ndist, main=paste("Distribution of means of ", k, 
+            #                            " random samples, each\nconsisting of ", n, 
+            #                            " observations from a ", distname, sep=""), 
+            #          xlab="Sample means", freq=FALSE, ylim=c(0, max(ndens$y, nhist$density)),
+            #          col=COL[2,3], border = "white", 
+            #          cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
+            #     legend_pos = ifelse(m_samp > 40, "topleft", "topright")
+            #     legend(legend_pos, inset = 0.025, 
+            #            legend=bquote(atop("mean of " ~ bar(x)==.(m_samp),"sd of " ~ bar(x) ~ "(SE)" ==.(sd_samp))), 
+            #            bty = "n", cex = 1.5, text.col = COL[2], text.font = 2)
+            # }
           }
       })
   
@@ -408,7 +416,7 @@ output$population.dist = renderPlot({
     else{
         
         
-        ggplot(populationDataTable, aes(V1, fill=COL[2,3])) + geom_histogram(bins = 200)
+        ggplot(populationDataTable, aes(V1)) + geom_histogram(bins = 200)
         
         # if (input$dist == "rnorm"){
         #     ggplot(populationDataTable, aes(V1)) + geom_histogram()
