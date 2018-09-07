@@ -1,35 +1,3 @@
-# This borrows code and ideas from:
-# https://qualityandinnovation.com/2015/03/30/sampling-distributions-and-central-limit-theorem-in-r/ 
-# and
-# https://github.com/ShinyEd/ShinyEd/tree/master/CLT_mean
-#
-#
-# This deliberately doesn't allow the user to select the number of sample means 
-# for the simulation.
-#
-# Quoting from Quality And Innovation:
-#
-# "You aren’t allowed to change the number of replications in this simulation 
-# because of the nature of the sampling distribution: it’s a theoretical model 
-# that describes the distribution of statistics from an infinite number of samples. 
-# As a result, if you increase the number of replications, you’ll see the mean 
-# of the sampling distribution bounce around until it converges on the mean of 
-# the population. This is just an artifact of the simulation process: it’s not 
-# a characteristic of the sampling distribution, because to be a sampling 
-# distribution, you’ve got to have an infinite number of samples."
-#
-# Ten thousand samples is close enough to an infinite number that the distribution
-# will cluster around the population mean, but not so many that it will overwhelm
-# the computer doing the simulation.
-#
-# Allowing users to select the number of sample means in a simulation will give 
-# them the false impression that the distribution of sample means will become more 
-# normal and the distribution will approach the population mean, as the number of 
-# sample means increases.
-# 
-# For additional reading see here: 
-# http://www.amstat.org/publications/jse/v22n3/watkins.pdf
-
 
 
 # Load packages -----------------------------------------------------
@@ -42,10 +10,9 @@ library(data.table)
 library(DT)
 
 # Define UI ---------------------------------------------------------
-#ui <- pageWithSidebar(
+
 ui <- fluidPage(
     
-    #headerPanel("Central Limit Theorem for Means"),
     titlePanel("Central Limit Theorem"),
         sidebarLayout(
             sidebarPanel(
@@ -76,7 +43,11 @@ ui <- fluidPage(
             uiOutput("probability"), # for rbinom
             uiOutput("lambda"), # for rpois
             uiOutput("df"), #rchisq, rt
-            uiOutput("ncp"), #rchisq, rt
+            uiOutput("ncp"), #rchisq, rt, rbeta
+            uiOutput("meanlog"), #rlnorm
+            uiOutput("sdlog"), #rlnorm
+            uiOutput("shape1"), #rlnorm
+            uiOutput("shape2"), #rlnorm
 
             
             sliderInput("n", 
@@ -157,21 +128,55 @@ server <- function(input, output) {
                         max = 20)
         }
         })
-  
-    output$skew = renderUI(
+
+    output$shape1 = renderUI(
         {
-        req(input$dist)
-        #print("skew options")
-        if (input$dist == "rlnorm" | input$dist == "rbeta"){
-            selectInput(inputId = "skew",
-                        label = "Skew",
-                        choices = c("Low skew" = "low",
-                                    "Medium skew" = "med",
-                                    "High skew" = "high"),
-                        selected = "low")
+            req(input$dist)
+            if (input$dist == "rbeta")
+            {
+                numericInput("shape1", 
+                             "Shape 1",
+                             min = 0,
+                             value = 5)
+            }
         }
-    })
+    )    
+    output$shape2 = renderUI(
+        {
+            req(input$dist)
+            if (input$dist == "rbeta")
+            {
+                numericInput("shape2", 
+                             "Shape 2",
+                             min = 0,
+                             value = 1)
+            }
+        }
+    )    
   
+    output$meanlog = renderUI(
+        {
+            req(input$dist)
+            if (input$dist == "rlnorm")
+            {
+                numericInput("meanlog", 
+                             "Mean log",
+                             value = 0)
+            }
+        })
+    
+    output$sdlog = renderUI(
+        {
+            req(input$dist)
+            if (input$dist == "rlnorm")
+            {
+                numericInput("sdlog", 
+                             "SD log",
+                             value = 1,
+                             min = 0.1)
+            }
+        })
+    
     output$size = renderUI(
         {
           req(input$dist)
@@ -222,7 +227,7 @@ server <- function(input, output) {
     output$ncp = renderUI(
         {
             req(input$dist)
-            if (input$dist == "rt" || input$dist == "rchisq")
+            if (input$dist == "rt" || input$dist == "rchisq" || input$dist == 'rbeta')
             {
                 numericInput("ncp", 
                              "Non-Centrality Parameter",
@@ -244,10 +249,6 @@ server <- function(input, output) {
           }
         })
 
-#   "rate"  for rexp
-#   "size" for rbinom
-#   "probability" for rbinom
-#   "lambda" for rpois
 
 # rand_draw function -----------------------------------------------------------
     
@@ -257,17 +258,10 @@ server <- function(input, output) {
   rand_draw = function(dist, n, mu, sd, min, max, skew, rate, size, probability, lambda, df, ncp) 
   {
     vals = NULL
-    if (dist == "rbeta") {
-      if (skew == "low"){
-        vals = do.call(dist, list(n=n, shape1=5, shape2=2))
-      }
-      else if (skew == "med"){
-        vals = do.call(dist, list(n=n, shape1=5, shape2=1.5))
-      }
-      else if (skew == "high"){
-        vals = do.call(dist, list(n=n, shape1=5, shape2=1)) 
-      }
-    }     
+    if (dist == "rbeta"){
+        shape1 = input$shape1 ; shape2 = input$shape2; ncp = input$ncp
+        vals = do.call(dist, list(n=n, shape1=shape1, shape2=shape2, ncp=ncp))
+    } 
     else if (dist == "rnorm"){
       mean = input$mu ; sd = input$sd 
       vals = do.call(dist, list(n=n, mean=mu, sd=sd))
@@ -277,15 +271,8 @@ server <- function(input, output) {
         vals = do.call(dist, list(n=n, rate=rate))
     }
     else if (dist == "rlnorm"){
-      if (skew == "low"){
-        vals = do.call(dist, list(n=n, meanlog=0, sdlog=.25))
-      }
-      else if (skew == "med"){
-        vals = do.call(dist, list(n=n, meanlog=0, sdlog=.5))
-      }
-      else if (skew == "high"){
-        vals = do.call(dist, list(n=n, meanlog=0, sdlog=1))
-      }
+        meanlog = input$meanlog; sdlog = input$sdlog
+        vals = do.call(dist, list(n=n, meanlog=meanlog, sdlog=sdlog))
     }
     else if (dist == "runif"){
       vals = do.call(dist, list(n=n, min=min, max=max))
@@ -307,11 +294,11 @@ server <- function(input, output) {
 
 # Create population and sample data ------------------------------------------   
     
-  # the repeatable function always uses the same seed when called
+    # the repeatable function always uses the same seed when called
   rep_rand_draw = repeatable(rand_draw)  
   
-  # parent returns the same population distribution each time it is called based 
-  # on the called functions and inputs.
+    # parent returns the same population distribution each time 
+    # it is called depending on the called functions and inputs.
   parent = reactive({
     req(input$dist, input$mu, input$sd)
     n = 1e5
@@ -334,11 +321,17 @@ server <- function(input, output) {
 output$population.dist = renderPlot({
     
     distname = switch(input$dist,
-                      rnorm = "Population distribution: Normal",
-                      rlnorm = "Population distribution: Right skewed",
-                      rbeta = "Population distribution: Left skewed",
-                      runif = "Population distribution: Uniform",
-                      rexp = "Population Distribution: Exponential")
+                    rnorm = "Population distribution: Normal",
+                    rexp = "Population distribution: Exponential",
+                    runif = "Population distribution: Uniform",
+                    rpois = "Population distribution: Poisson",
+                    rbinom = "Population distribution: Binomial",
+                    rlnorm = "Population distribution: Log Normal",
+                    rbeta = "Population distribution: Beta",
+                    rt = "Population distribution: Student T",
+                    rchisq = "Population distribution: Chi Square"
+    )
+    
 
     population = parent()
     m_population =  round(mean(population),2)
@@ -364,38 +357,14 @@ output$population.dist = renderPlot({
     if (error){
         plot(0,0,type='n',axes=FALSE,xlab="",ylab="",mar=c(1,1,1,1))
         text(0,0,"Error: Lower bound greater than upper bound.",col="red",cex=2)
-    }
-    else{
-        
-        
-        ggplot(populationDataTable, aes(V1, stat(density))) + geom_histogram(bins = 200)
-        
-        # if (input$dist == "rnorm"){
-        #     ggplot(populationDataTable, aes(V1)) + geom_histogram()
-        # }
-        # 
-        # else if (input$dist == "runif"){
-        #     ggplot(populationDataTable, aes(V1)) + geom_histogram()
-        # }
-        # 
-        # else if (input$dist == "rlnorm"){
-        #     ggplot(populationDataTable, aes(V1)) + geom_histogram() 
-        # }
-        #  
-        # else if (input$dist == "rbeta"){
-        #     ggplot(populationDataTable, aes(V1)) + geom_histogram()
-        # }
-        # 
-        # else if (input$dist == "rexp"){
-        #     ggplot(populationDataTable, aes(V1)) + geom_histogram()
-        # }
+    } else {
+        p <- ggplot(populationDataTable, aes(V1, stat(density))) 
+        p + geom_histogram(bins = 200)
     }
 })
-  
-
     
-# Render Population Distribution Text
-#populationDistributionText
+# Generate Population Distribution Text - 
+# Just for test purposes
   
   output$populationDistributionText <- renderText({
   
@@ -453,7 +422,7 @@ output$population.dist = renderPlot({
     }
   })
   
-# Render "Distribution of Samples" Text ------------------------------------------------------------------
+# Render "Distribution of Samples" Text -------------------------------------
   
   output$num.samples = renderText({
     L = NULL ; U = NULL ; error = FALSE
@@ -475,7 +444,6 @@ output$population.dist = renderPlot({
     }
   })
   
-
   
 # text
   output$CLT.descr = renderText({
@@ -528,10 +496,14 @@ output$population.dist = renderPlot({
           
           distname = switch(input$dist,
                             rnorm = "normal population",
-                            rlnorm  = "right skewed population",
-                            rbeta = "left skewed population",
+                            rexp = "exponential population",
                             runif = "uniform population",
-                            rexp = "exponential population")   
+                            rpois = "poisson population",
+                            rbinom = "binomial population",
+                            rlnorm  = "log normal population",
+                            rbeta = "beta population",
+                            rt = "student's t population",
+                            rchisq = "chi-squared population")   
           
           
           n = input$n
@@ -552,41 +524,10 @@ output$population.dist = renderPlot({
           ndens=density(ndist)
           nhist=hist(ndist, plot=FALSE)
           
-          #Old code
+
+          p <- ggplot(ndistDataTable, aes(sampleMeans, stat(density))) 
+          p + geom_histogram(bins = 100)
           
-          # if (input$dist == "rnorm"){
-          #   hist(ndist, main = paste("Sampling distribution:\nDistribution of means of ", k, 
-          #                            " random samples, each\nconsisting of ", n, 
-          #                            " observations from a ", distname, sep=""),              
-          #        xlab="Sample means", freq=FALSE,
-          #        xlim=c(min(-100,population),max(100,population)),
-          #        ylim=c(0, max(ndens$y, nhist$density)),
-          #        col=COL[2,2], border = "white", 
-          #        cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
-          #   legend_pos = ifelse(m_samp > 40, "topleft", "topright")
-          #   legend(legend_pos, inset = 0.025, 
-          #          legend=bquote(atop("mean of " ~ bar(x)==.(m_samp),"sd of " ~ bar(x) ~ "(SE)" ==.(sd_samp))), 
-          #          bty = "n", cex = 1.5, text.col = COL[2,2], text.font = 2)
-          # }
-          
-          
-          ggplot(ndistDataTable, aes(sampleMeans, stat(density))) + geom_histogram(bins = 100)
-          
-          # if (input$dist == "rnorm"){
-          #     ggplot(ndistDataTable, aes(sampleMeans, stat(density))) + geom_histogram(bins = 100)
-          # }
-          # else{
-          #     hist(ndist, main=paste("Distribution of means of ", k, 
-          #                            " random samples, each\nconsisting of ", n, 
-          #                            " observations from a ", distname, sep=""), 
-          #          xlab="Sample means", freq=FALSE, ylim=c(0, max(ndens$y, nhist$density)),
-          #          col=COL[2,3], border = "white", 
-          #          cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
-          #     legend_pos = ifelse(m_samp > 40, "topleft", "topright")
-          #     legend(legend_pos, inset = 0.025, 
-          #            legend=bquote(atop("mean of " ~ bar(x)==.(m_samp),"sd of " ~ bar(x) ~ "(SE)" ==.(sd_samp))), 
-          #            bty = "n", cex = 1.5, text.col = COL[2], text.font = 2)
-          # }
       }
   })
   
@@ -595,11 +536,15 @@ output$population.dist = renderPlot({
   output$sampling.descr = renderText({
       
       distname = switch(input$dist,
-                        rnorm = "normal population.",
-                        rlnorm  = "right skewed population.",
-                        rbeta = "left skewed population.",
-                        runif = "uniform population.",
-                        rexp = "exponential population.")  
+                        rnorm = "normal population",
+                        rexp = "exponential population",
+                        runif = "uniform population",
+                        rpois = "poisson population",
+                        rbinom = "binomial population",
+                        rlnorm  = "log normal population",
+                        rbeta = "beta population",
+                        rt = "student's t population",
+                        rchisq = "chi-squared population")  
       
       L = NULL ; U = NULL ; error = FALSE
       
