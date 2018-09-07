@@ -3,9 +3,9 @@ This is a Shiny App that simulates the central limit theorem.
 The App simulates normal, binomial, log normal, exponential, uniform, poisson, beta, student-t, and chi-squared population distributions, plots those distributions, plots population samples and sample mean distributions. The user can change the sample size to show how sample size affects the sample mean distribution.
 
 This borrows code and ideas from:
-https://qualityandinnovation.com/2015/03/30/sampling-distributions-and-central-limit-theorem-in-r/ 
-and
-https://github.com/ShinyEd/ShinyEd/tree/master/CLT_mean
+* https://qualityandinnovation.com/2015/03/30/sampling-distributions-and-central-limit-theorem-in-r/ 
+
+* https://github.com/ShinyEd/ShinyEd/tree/master/CLT_mean
 
 
 This deliberately doesn't allow the user to select the number of sample means 
