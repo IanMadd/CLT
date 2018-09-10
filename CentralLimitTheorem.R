@@ -61,15 +61,17 @@ ui <- fluidPage(
         mainPanel(
             
             tabsetPanel(type = "tabs",
-                        tabPanel("Population Distribution", plotOutput("population.dist"),
-                                div(textOutput("populationDistributionText"), align = "center")),
-                        tabPanel("Distributions of Samples", plotOutput("sample.dist"),
-                                 div(h3(textOutput("num.samples")), align = "center")),
-                        tabPanel("Distribution of Sample Means", plotOutput("sampling.dist"),
-                                 div(textOutput("sampling.descr"), align = "center"))
+                tabPanel("Population Distribution", plotOutput("population.dist")),
+                                
+                tabPanel("Distributions of Samples", plotOutput("sample.dist"),
+                    div(h3(textOutput("num.samples")), align = "center")),
+                tabPanel("Distribution of Sample Means", plotOutput("sampling.dist"),
+                    div(textOutput("sampling.descr"), align = "center"))
             )
         )    
-    )
+    ),
+    tableOutput("summaryTableOutput")
+    
 )
 
 # Define server function --------------------------------------------
@@ -139,8 +141,8 @@ server <- function(input, output) {
                              min = 0,
                              value = 5)
             }
-        }
-    )    
+        })
+    
     output$shape2 = renderUI(
         {
             req(input$dist)
@@ -151,8 +153,7 @@ server <- function(input, output) {
                              min = 0,
                              value = 1)
             }
-        }
-    )    
+        })    
   
     output$meanlog = renderUI(
         {
@@ -211,8 +212,8 @@ server <- function(input, output) {
                            min = 0,
                            value = 2)
           }
-        }
-    )    
+        })
+    
     output$df = renderUI(
         {
             req(input$dist)
@@ -224,6 +225,7 @@ server <- function(input, output) {
                              value = 10)
           }
       })
+    
     output$ncp = renderUI(
         {
             req(input$dist)
@@ -255,97 +257,157 @@ server <- function(input, output) {
     # rand_draw creates a population distribution 
     # Output: returns a population vector based on the user selected input distribution function
     
-  rand_draw = function(dist, n, mu, sd, min, max, skew, rate, size, probability, lambda, df, ncp) 
-  {
-    vals = NULL
-    if (dist == "rbeta"){
-        shape1 = input$shape1 ; shape2 = input$shape2; ncp = input$ncp
-        vals = do.call(dist, list(n=n, shape1=shape1, shape2=shape2, ncp=ncp))
-    } 
-    else if (dist == "rnorm"){
-      mean = input$mu ; sd = input$sd 
-      vals = do.call(dist, list(n=n, mean=mu, sd=sd))
-    } 
-    else if (dist == "rexp"){
-        rate = input$rate
-        vals = do.call(dist, list(n=n, rate=rate))
+    rand_draw = function(dist, n, mu, sd, min, max, skew, rate, size, probability, lambda, df, ncp) 
+    {
+        vals = NULL
+        if (dist == "rbeta"){
+            shape1 = input$shape1 ; shape2 = input$shape2; ncp = input$ncp
+            vals = do.call(dist, list(n=n, shape1=shape1, shape2=shape2, ncp=ncp))
+        } 
+        else if (dist == "rnorm"){
+          mean = input$mu ; sd = input$sd 
+          vals = do.call(dist, list(n=n, mean=mu, sd=sd))
+        } 
+        else if (dist == "rexp"){
+            rate = input$rate
+            vals = do.call(dist, list(n=n, rate=rate))
+        }
+        else if (dist == "rlnorm"){
+            meanlog = input$meanlog; sdlog = input$sdlog
+            vals = do.call(dist, list(n=n, meanlog=meanlog, sdlog=sdlog))
+        }
+        else if (dist == "runif"){
+          vals = do.call(dist, list(n=n, min=min, max=max))
+        }
+        else if (dist == "rpois"){
+            vals = do.call(dist, list(n=n, lambda = lambda))    
+        }
+        else if (dist == "rbinom"){
+            vals = do.call(dist, list(n=n, size = size, prob = probability))    
+        }
+        else if (dist == "rt"){
+            vals = do.call(dist, list(n=n, df=df, ncp=ncp))    
+        }
+        else if (dist == "rchisq"){
+            vals = do.call(dist, list(n=n, df=df, ncp=ncp))    
+        }
+        return(vals)
     }
-    else if (dist == "rlnorm"){
-        meanlog = input$meanlog; sdlog = input$sdlog
-        vals = do.call(dist, list(n=n, meanlog=meanlog, sdlog=sdlog))
-    }
-    else if (dist == "runif"){
-      vals = do.call(dist, list(n=n, min=min, max=max))
-    }
-    else if (dist == "rpois"){
-        vals = do.call(dist, list(n=n, lambda = lambda))    
-    }
-    else if (dist == "rbinom"){
-        vals = do.call(dist, list(n=n, size = size, prob = probability))    
-    }
-    else if (dist == "rt"){
-        vals = do.call(dist, list(n=n, df=df, ncp=ncp))    
-    }
-    else if (dist == "rchisq"){
-        vals = do.call(dist, list(n=n, df=df, ncp=ncp))    
-    }
-    return(vals)
-  }
 
 # Create population and sample data ------------------------------------------   
     
     # the repeatable function always uses the same seed when called
-  rep_rand_draw = repeatable(rand_draw)  
+    rep_rand_draw = repeatable(rand_draw)  
   
     # parent returns the same population distribution each time 
     # it is called depending on the called functions and inputs.
-  parent = reactive({
-    req(input$dist, input$mu, input$sd)
-    n = 1e5
-    return(rep_rand_draw(input$dist, n, input$mu, input$sd, input$min, input$max, input$skew, input$rate, input$size, input$probability, input$lambda, input$df, input$ncp))
-  })
+    parent = reactive({
+        req(input$dist, input$mu, input$sd)
+        n = 1e5
+        return(rep_rand_draw(
+                        input$dist, 
+                        n, 
+                        input$mu, 
+                        input$sd, 
+                        input$min, 
+                        input$max, 
+                        input$skew, 
+                        input$rate, 
+                        input$size, 
+                        input$probability, 
+                        input$lambda, 
+                        input$df, 
+                        input$ncp
+                        )
+              )
+    })
 
-  # samples from the population distribution 
-  # returns a matrix of samples, each value is a sample, each column is a sample set
-  samples = reactive({
-    req(parent())
-    population = parent()
-    n = input$n
-    k = 10000
+    # samples from the population distribution 
+    # returns a matrix of samples, each value is a sample, each column is a sample set
+    samples = reactive({
+        req(parent())
+        population = parent()
+        n = input$n
+        k = 10000
+        return(replicate(k, sample(population, n, replace=TRUE)))
+    })
+    
+# Create Table With Summary Data -------------------------------------------    
+    summaryTable <- reactive({
+        req(parent(), samples(), input$n)
+        population = parent()
+        m_population =  round(mean(population),3)
+        sd_population = round(sd(population),3)
+        ndist = colMeans(samples())
+        sd_ndist = round(sd(ndist),3)
+        m_sample = round(mean(ndist),3)
 
-    return(replicate(k, sample(population, n, replace=TRUE)))
-  })
+        return(
+            data.frame(
+                "Population Mean" = m_population,
+                "Mean of Sample Means" = m_sample,
+                "SD of Population" = sd_population,
+                "SD of Pop Div SQRT Sample Size" = sd_population / sqrt(input$n),
+                "SD of Sample Means" = sd_ndist
+                
+            )
+        )
+    })
 
 # Plot: Population Distribution ------------------------------------------------
 
-output$population.dist = renderPlot({
+    output$population.dist = renderPlot({
     
-    distname = switch(input$dist,
-                    rnorm = "Population distribution: Normal",
-                    rexp = "Population distribution: Exponential",
-                    runif = "Population distribution: Uniform",
-                    rpois = "Population distribution: Poisson",
-                    rbinom = "Population distribution: Binomial",
-                    rlnorm = "Population distribution: Log Normal",
-                    rbeta = "Population distribution: Beta",
-                    rt = "Population distribution: Student T",
-                    rchisq = "Population distribution: Chi Square"
-    )
+        distname = switch(input$dist,
+                        rnorm = "Population distribution: Normal",
+                        rexp = "Population distribution: Exponential",
+                        runif = "Population distribution: Uniform",
+                        rpois = "Population distribution: Poisson",
+                        rbinom = "Population distribution: Binomial",
+                        rlnorm = "Population distribution: Log Normal",
+                        rbeta = "Population distribution: Beta",
+                        rt = "Population distribution: Student T",
+                        rchisq = "Population distribution: Chi Square"
+        )
     
 
-    population = parent()
-    m_population =  round(mean(population),2)
-    sd_population = round(sd(population),2)
-    mu = input$mu
+        population = parent()
+        m_population =  round(mean(population),2)
+        sd_population = round(sd(population),2)
+        mu = input$mu
 
-    populationDataTable = data.table(parent())
+        populationDataTable = data.table(parent())
     
     
-    L = NULL
-    U = NULL
+        L = NULL
+        U = NULL
 
-    error = FALSE
+        error = FALSE
 
+        if (input$dist == "runif"){
+            L = input$min
+            U = input$max
+            if (L > U){
+                error = TRUE
+            }
+        }
+
+        if (error){
+            plot(0,0,type='n',axes=FALSE,xlab="",ylab="",mar=c(1,1,1,1))
+            text(0,0,"Error: Lower bound greater than upper bound.",col="red",cex=2)
+        } else {
+            p <- ggplot(populationDataTable, aes(V1, stat(density))) 
+            p + geom_histogram(bins = 200) + geom_vline(xintercept = m_population)
+        }
+    })
+  
+  
+# Plot: Multiple Sample Distributions-------------------------------------------
+  
+  output$sample.dist = renderPlot({
+    
+    L = NULL ; U = NULL ; error = FALSE
+    
     if (input$dist == "runif"){
         L = input$min
         U = input$max
@@ -353,148 +415,104 @@ output$population.dist = renderPlot({
             error = TRUE
         }
     }
-
-    if (error){
-        plot(0,0,type='n',axes=FALSE,xlab="",ylab="",mar=c(1,1,1,1))
-        text(0,0,"Error: Lower bound greater than upper bound.",col="red",cex=2)
-    } else {
-        p <- ggplot(populationDataTable, aes(V1, stat(density))) 
-        p + geom_histogram(bins = 200)
-    }
-})
     
-# Generate Population Distribution Text - 
-# Just for test purposes
+    if (error)
+        return
+    else{
+      
+        par(mfrow=c(3,3))
+        x = samples()
+      
+        par(mfrow=c(2,4))
+        for(i in 1:8){
+            BHH2::dotPlot(x[,i], col = COL[2,3],
+                        main = paste("Sample",i),
+                        xlab = "", pch=19,
+                        ylim = c(0,2), xlim = c(min(x), max(x)),
+                        cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
+            box()
+            mean_samp = round(mean(x[,i]),2)
+            sd_samp = round(sd(x[,i]),2)
+            legend("topright",
+                legend=bquote(atop(bar(x)[.(i)]==.(mean_samp),
+                s[.(i)]==.(sd_samp))),
+                bty = "n", cex = 1.5, text.font = 2)
+            abline(v=mean_samp, col=COL[2],lwd=2)
+        }
+    }
+  })
   
-  output$populationDistributionText <- renderText({
+# Render Text "Distribution of Samples"-------------------------------------
   
-  population = parent()
-  m_population =  round(mean(population),2)
-  sd_population = round(sd(population),2)
-  mu = input$mu
-  
-  populationDataTable = data.table(parent())
-  
-          
-        paste0("Data: ", populationDataTable[1:10])   
+    output$num.samples = renderText({
+        L = NULL ; U = NULL ; error = FALSE
+    
+        if (input$dist == "runif"){
+            L = input$min ; U = input$max
+            if (L > U){
+                error = TRUE
+            }
+        }
+    
+        if (error)
+            paste0()
+        else{
+            k = 10000
+            paste0("... continuing to Sample ",k,".")
+        }
     })
   
   
-# Plot: Sample Distribution --------------------------------------------------
-  
-  output$sample.dist = renderPlot({
-    
-    L = NULL ; U = NULL ; error = FALSE
-    
-    if (input$dist == "runif"){
-      L = input$min
-      U = input$max
-      if (L > U){
-        error = TRUE
-      }
-    }
-    
-    if (error)
-      return
-    
-    else{
-      
-      par(mfrow=c(3,3))
-      x = samples()
-      
-      par(mfrow=c(2,4))
-      for(i in 1:8){
-        BHH2::dotPlot(x[,i], col = COL[2,3],
-                      main = paste("Sample",i),
-                      xlab = "", pch=19,
-                      #ylim = c(0,2), xlim = c(min(-100,x),max(100,x))
-                      ylim = c(0,2), xlim = c(min(x), max(x)),
-                      cex.main = 1.5, cex.axis = 1.5, cex.lab = 1.5)
-        box()
-        mean_samp = round(mean(x[,i]),2)
-        sd_samp = round(sd(x[,i]),2)
-        legend("topright",
-               legend=bquote(atop(bar(x)[.(i)]==.(mean_samp),
-                                  s[.(i)]==.(sd_samp))),
-               bty = "n", cex = 1.5, text.font = 2)
-        abline(v=mean_samp, col=COL[2],lwd=2)
-      }
-    }
-  })
-  
-# Render "Distribution of Samples" Text -------------------------------------
-  
-  output$num.samples = renderText({
-    L = NULL ; U = NULL ; error = FALSE
-    
-    if (input$dist == "runif"){
-      L = input$min ; U = input$max
-      if (L > U){
-        error = TRUE
-      }
-    }
-    
-    if (error)
-      paste0()
-    
-    else{
-      
-      k = 10000
-      paste0("... continuing to Sample ",k,".")
-    }
-  })
-  
-  
 # text
-  output$CLT.descr = renderText({
+    output$CLT.descr = renderText({
     
-    L = NULL ; U = NULL ; error = FALSE
+        L = NULL ; U = NULL ; error = FALSE
     
-    if (input$dist == "runif"){
-      L = input$min ; U = input$max
-      if (L > U){
-        error = TRUE
-      }
-    }
+        if (input$dist == "runif"){
+            L = input$min ; U = input$max
+            if (L > U){
+                error = TRUE
+            }
+        }
     
-    if (error)
-      paste0()
+        if (error)
+            paste0()
     
-    else{
-      population = parent()
-      m_population =  round(mean(population),2)
-      s_population = round(sd(population),2)
+        else{
+            population = parent()
+            m_population =  round(mean(population),2)
+            s_population = round(sd(population),2)
       
-      n = input$n
-      se=round(s_population/sqrt(n),2)
-      paste("According to the Central Limit Theorem (CLT), the distribution of sample means 
-            (the sampling distribution) should be nearly normal. The mean of 
-            the sampling distribution should be approximately equal to the population mean (", m_population, ") 
-            and the standard error (the standard deviation of
-            sample means) should be approximately equal to the SD of the population divided by square root of
-            sample size (", s_population,
-            "/sqrt(",n, ") =", se,").")
-    }
-  })
+        n = input$n
+        se=round(s_population/sqrt(n),2)
+        paste("According to the Central Limit Theorem (CLT), the distribution 
+            of sample means (the sampling distribution) should be nearly normal. 
+            The mean of the sampling distribution should be approximately equal 
+            to the population mean (", m_population, ") and the standard error 
+            (the standard deviation of sample means) should be approximately 
+            equal to the SD of the population divided by square root of sample 
+            size (", s_population,"/sqrt(",n, ") =", se,").")
+        }
+    })
 # Plot: Distribution of Sample Means -------------------------------------------------
   
-  output$sampling.dist = renderPlot({
+    output$sampling.dist = renderPlot({
       
-      L = NULL ; U = NULL ; error = FALSE
+        L = NULL ; U = NULL ; error = FALSE
       
-      if (input$dist == "runif"){
-          L = input$min ; U = input$max
-          if (L > U){
-              error = TRUE
-          }
-      }
+        if (input$dist == "runif"){
+            L = input$min ; U = input$max
+            if (L > U){
+                error = TRUE
+            }
+        }
       
-      if (error)
-          return
+        if (error)
+            return
       
-      else{
+        else{
           
-          distname = switch(input$dist,
+            distname = switch(input$dist,
                             rnorm = "normal population",
                             rexp = "exponential population",
                             runif = "uniform population",
@@ -506,36 +524,35 @@ output$population.dist = renderPlot({
                             rchisq = "chi-squared population")   
           
           
-          n = input$n
-          k = 10000
+            n = input$n
+            k = 10000
           
-          population = parent()
+            population = parent()
           
-          m_population =  round(mean(population),2)
-          sd_population = round(sd(population),2)
+            m_population =  mean(population)
+            sd_population = round(sd(population),2)
           
-          ndist = colMeans(samples())
-          ndistDataTable = data.table(sampleMeans = colMeans(samples()))
+            ndist = colMeans(samples())
+            ndistDataTable = data.table(sampleMeans = colMeans(samples()))
           
           
-          m_samp =  round(mean(ndist),2)
-          sd_samp = round(sd(ndist),2)
+            m_samp =  round(mean(ndist),2)
+            sd_samp = round(sd(ndist),2)
           
-          ndens=density(ndist)
-          nhist=hist(ndist, plot=FALSE)
+            ndens=density(ndist)
+            nhist=hist(ndist, plot=FALSE)
           
 
-          p <- ggplot(ndistDataTable, aes(sampleMeans, stat(density))) 
-          p + geom_histogram(bins = 100)
+            p <- ggplot(ndistDataTable, aes(sampleMeans, stat(density))) 
+            p + geom_histogram(bins = 100) + geom_vline(xintercept = m_population)
           
-      }
-  })
+        }
+    })
   
-  # Sampling Distribution Text 
-  
-  output$sampling.descr = renderText({
+# Sampling Distribution Text -----------------------------------------------
+    output$sampling.descr = renderText({
       
-      distname = switch(input$dist,
+        distname = switch(input$dist,
                         rnorm = "normal population",
                         rexp = "exponential population",
                         runif = "uniform population",
@@ -546,28 +563,40 @@ output$population.dist = renderPlot({
                         rt = "student's t population",
                         rchisq = "chi-squared population")  
       
-      L = NULL ; U = NULL ; error = FALSE
+        L = NULL ; U = NULL ; error = FALSE
       
-      if (input$dist == "runif"){
-          L = input$min ; U = input$max
-          if (L > U){
-              error = TRUE
-          }
-      }
+        if (input$dist == "runif"){
+            L = input$min ; U = input$max
+            if (L > U){
+                error = TRUE
+            }
+        }
       
-      if (error)
-          paste0("Error!")
-      
-      else{
+        if (error)
+            paste0("Error!")
           
-          k = 10000
-          n = input$n
-          paste("Distribution of ", k, "meaned samples,\n
+        else{
+              
+            k = 10000
+            n = input$n
+            paste("Distribution of ", k, "meaned samples,\n
                 each meaned sample consists of", n, " observations
                 from a", distname)
-      }
-      })  
-  
+        }
+    })
+    
+# Render Table With Summary Data ----------------------------------------
+    
+    output$summaryTableOutput <- renderTable(
+        {
+            summaryTable()
+        },
+        digits = 3,
+        align = 'c',
+        striped = TRUE,
+        hover = TRUE,
+        bordered = TRUE
+    )
 }
 # Create the Shiny app object ---------------------------------------
 shinyApp(ui = ui, server = server)
