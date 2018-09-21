@@ -175,10 +175,15 @@ server <- function(input, output) {
             req(input$dist)
             if (input$dist == "rlnorm")
             {
-                numericInput("sdlog", 
-                             "SD log",
-                             value = 1,
-                             min = 0.1)
+                # numericInput("sdlog", 
+                #              "SD log",
+                #              value = 1,
+                #              min = 0.1)
+                sliderInput("sdlog",
+                            "SD log",
+                            value = 0.5,
+                            min = 0.01,
+                            max = 1)
             }
         })
     
