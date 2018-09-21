@@ -61,16 +61,20 @@ ui <- fluidPage(
         mainPanel(
             
             tabsetPanel(type = "tabs",
-                tabPanel("Population Distribution", plotOutput("population.dist")),
-                                
+                tabPanel("Population Distribution", plotOutput("population.dist"),
+                br()),
                 tabPanel("Distributions of Samples", plotOutput("sample.dist"),
-                    div(h3(textOutput("num.samples")), align = "center")),
+                    div(h3(textOutput("num.samples")), align = "center"),
+                    br()),
                 tabPanel("Distribution of Sample Means", plotOutput("sampling.dist"),
-                    div(textOutput("sampling.descr"), align = "center"))
+                    div(textOutput("sampling.descr"), align = "center"),
+                    br()),
+                tabPanel("Sample Means QQ Plot", plotOutput("QQPlot"))
+
             )
         )    
     ),
-    tableOutput("summaryTableOutput")
+    div(tableOutput("summaryTableOutput"), align = "center")
     
 )
 
@@ -344,11 +348,10 @@ server <- function(input, output) {
 
         return(
             data.frame(
-                "Population Mean" = m_population,
-                "Mean of Sample Means" = m_sample,
-                "SD of Population" = sd_population,
-                "SD of Pop Div SQRT Sample Size" = sd_population / sqrt(input$n),
-                "SD of Sample Means" = sd_ndist
+                Mean = c(m_population, m_sample),
+                SD = c(sd_population,sd_ndist), 
+                row.names = c("Population", "Sample Means")
+
                 
             )
         )
@@ -397,12 +400,12 @@ server <- function(input, output) {
             text(0,0,"Error: Lower bound greater than upper bound.",col="red",cex=2)
         } else {
             p <- ggplot(populationDataTable, aes(V1, stat(density))) 
-            p + geom_histogram(bins = 200) + geom_vline(xintercept = m_population)
+            p + geom_histogram(bins = 200) + geom_vline(xintercept = m_population) + ylab("Density") + xlab("")
         }
     })
   
   
-# Plot: Multiple Sample Distributions-------------------------------------------
+# Plot: Distributions of Samples-------------------------------------------
   
   output$sample.dist = renderPlot({
     
@@ -463,37 +466,6 @@ server <- function(input, output) {
     })
   
   
-# text
-    output$CLT.descr = renderText({
-    
-        L = NULL ; U = NULL ; error = FALSE
-    
-        if (input$dist == "runif"){
-            L = input$min ; U = input$max
-            if (L > U){
-                error = TRUE
-            }
-        }
-    
-        if (error)
-            paste0()
-    
-        else{
-            population = parent()
-            m_population =  round(mean(population),2)
-            s_population = round(sd(population),2)
-      
-        n = input$n
-        se=round(s_population/sqrt(n),2)
-        paste("According to the Central Limit Theorem (CLT), the distribution 
-            of sample means (the sampling distribution) should be nearly normal. 
-            The mean of the sampling distribution should be approximately equal 
-            to the population mean (", m_population, ") and the standard error 
-            (the standard deviation of sample means) should be approximately 
-            equal to the SD of the population divided by square root of sample 
-            size (", s_population,"/sqrt(",n, ") =", se,").")
-        }
-    })
 # Plot: Distribution of Sample Means -------------------------------------------------
   
     output$sampling.dist = renderPlot({
@@ -544,12 +516,12 @@ server <- function(input, output) {
           
 
             p <- ggplot(ndistDataTable, aes(sampleMeans, stat(density))) 
-            p + geom_histogram(bins = 100) + geom_vline(xintercept = m_population)
+            p + geom_histogram(bins = 100) + geom_vline(xintercept = m_population) + ylab("Density") + xlab("")
           
         }
     })
   
-# Sampling Distribution Text -----------------------------------------------
+# Distribution of Sample Means Text -----------------------------------------------
     output$sampling.descr = renderText({
       
         distname = switch(input$dist,
@@ -584,6 +556,49 @@ server <- function(input, output) {
                 from a", distname)
         }
     })
+
+# Render QQPlot
+    
+    output$QQPlot <- renderPlot({
+        
+        L = NULL ; U = NULL ; error = FALSE
+        
+        if (input$dist == "runif"){
+            L = input$min ; U = input$max
+            if (L > U){
+                error = TRUE
+            }
+        }
+        
+        if (error)
+            return
+        
+        else{
+            
+            distname = switch(input$dist,
+                              rnorm = "normal population",
+                              rexp = "exponential population",
+                              runif = "uniform population",
+                              rpois = "poisson population",
+                              rbinom = "binomial population",
+                              rlnorm  = "log normal population",
+                              rbeta = "beta population",
+                              rt = "student's t population",
+                              rchisq = "chi-squared population")   
+            
+            
+            n = input$n
+            k = 10000
+            
+            ndist = colMeans(samples())
+            ndist <- data.frame(y=ndist)
+        
+            p <- ggplot(ndist, aes(sample = y))
+            p + stat_qq() + stat_qq_line()
+        
+        }
+    })
+    
     
 # Render Table With Summary Data ----------------------------------------
     
@@ -595,7 +610,8 @@ server <- function(input, output) {
         align = 'c',
         striped = TRUE,
         hover = TRUE,
-        bordered = TRUE
+        bordered = TRUE,
+        rownames = TRUE
     )
 }
 # Create the Shiny app object ---------------------------------------
